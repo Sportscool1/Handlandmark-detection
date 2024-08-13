@@ -1,25 +1,87 @@
 <!DOCTYPE html>
 <html lang="en">
-<head> 
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/vision_bundle.js"
-    crossorigin="anonymous"></script>
-  <meta charset="UTF-8">
+<head>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hand Landmark Detection</title>
-    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/handpose"></script>
+    <style>
+        #video {
+            width: 640px;
+            height: 480px;
+        }
+        .landmark {
+            position: absolute;
+            width: 5px;
+            height: 5px;
+            background-color: red;
+            border-radius: 50%;
+        }
+    </style>
 </head>
 <body>
-    <header>
-        <h1>Hand Landmark Detection</h1>
-    </header>
-    <main>
-        <section id="video-container">
-            <video id="video" width="640" height="480" autoplay></video>
-        </section>
-        <section id="canvas-container">
-            <canvas id="canvas" width="640" height="480"></canvas>
-        </section>
-    </main>
-    <script src="script.js"></script>
+    <h1>Hand Landmark Detection</h1>
+    <video id="video" autoplay playsinline></video>
+    <div id="landmarks"></div>
+
+    <script>
+        let video;
+        let model;
+        const landmarksDiv = document.getElementById('landmarks');
+
+        async function setupCamera() {
+            video = document.getElementById('video');
+            video.width = 640;
+            video.height = 480;
+
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: true
+            });
+
+            video.srcObject = stream;
+
+            return new Promise((resolve) => {
+                video.onloadedmetadata = () => {
+                    resolve();
+                };
+            });
+        }
+
+        async function loadModel() {
+            model = await handpose.load();
+        }
+
+        async function detectHandLandmarks() {
+            const predictions = await model.estimateHands(video);
+
+            landmarksDiv.innerHTML = '';
+
+            if (predictions.length > 0) {
+                predictions.forEach(prediction => {
+                    const keypoints = prediction.landmarks;
+
+                    keypoints.forEach(landmark => {
+                        const [x, y] = landmark;
+                        const landmarkDiv = document.createElement('div');
+                        landmarkDiv.className = 'landmark';
+                        landmarkDiv.style.left = `${x}px`;
+                        landmarkDiv.style.top = `${y}px`;
+                        landmarksDiv.appendChild(landmarkDiv);
+                    });
+                });
+            }
+
+            requestAnimationFrame(detectHandLandmarks);
+        }
+
+        async function main() {
+            await setupCamera();
+            await loadModel();
+            detectHandLandmarks();
+        }
+
+        main();
+    </script>
 </body>
 </html>
